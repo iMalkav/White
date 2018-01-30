@@ -144,7 +144,45 @@ namespace TestStack.White
             if (processes.Length == 0) return Launch(processStartInfo);
             return Attach(processes[0]);
         }
+        
+        /// <summary>
+        /// Attaches to the current user process if it is running or launches a new process
+        /// </summary>
+        /// <param name="processStartInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="WhiteException">White Failed to Launch or Attach to process</exception>
+         public static Application CurrentUserAttachOrLaunch(ProcessStartInfo psi)
+        {
+            string processName = ReplaceLast(psi.FileName, ".exe", string.Empty);
+            processName = Path.GetFileName(processName);        // new line
+            Process[] processes = Process.GetProcessesByName(processName);
+            var user = Environment.UserName;
+            foreach (var process in processes)
+            {
+                var userName = GetUserNameProcessInfo(process.Id);
+                if (string.Equals(user, userName))
+                {
+                    return Application.Attach(process);
+                }
+            }
+            return Application.Launch(psi);
+        }
 
+        private static string GetUserNameProcessInfo(int handle)
+        {
+            using (ManagementObject proc = new
+            ManagementObject("Win32_Process.Handle='" + handle.ToString() + "'"))
+            {
+                proc.Get();
+                string[] s = new String[2];
+                //Invoke the method and populate the array with the user name and domain
+                proc.InvokeMethod("GetOwner", (object[])s);
+                Console.WriteLine("User: " + s[1] + "\\" + s[0]);
+                return s[0];
+            }
+        }
         private static string ReplaceLast(string replaceIn, string replace, string with)
         {
             int index = replaceIn.LastIndexOf(replace);
